@@ -3,37 +3,13 @@ const express = require('express');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const winston = require('winston');
-const { initializeApp } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
-const { getDatabase } = require('firebase-admin/database');
 const redis = require('redis');
 const { startBot } = require('./bot/bot');
 const { setupMatchmaking } = require('./matchmaking/matchmaking');
 const { setupServices } = require('./services/services');
 const { setupMiddleware } = require('./middleware/middleware');
 const { setupCommands } = require('./commands/commands');
-
-// Initialize Firebase
-const firebaseConfig = {
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-};
-initializeApp({
-  credential: require('firebase-admin').credential.cert(firebaseConfig),
-  databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}-default-rtdb.firebaseio.com/`
-});
-
-const db = getFirestore();
-const rtdb = getDatabase();
-
-// Initialize Redis
-const redisClient = redis.createClient({
-  host: process.env.REDIS_HOST,
-  port: process.env.REDIS_PORT,
-  password: process.env.REDIS_PASSWORD,
-});
-redisClient.connect();
+const { supabase } = require('./firebase/firebase');
 
 // Logger
 const logger = winston.createLogger({
@@ -49,10 +25,31 @@ const logger = winston.createLogger({
   ],
 });
 
+// Add trace method for Baileys compatibility
+logger.trace = logger.debug;
+
 if (process.env.NODE_ENV !== 'production') {
   logger.add(new winston.transports.Console({
     format: winston.format.simple(),
   }));
+}
+
+// Initialize Supabase (already done in firebase.js)
+logger.info('Supabase initialized');
+
+// Initialize Redis
+let redisClient;
+try {
+  redisClient = redis.createClient({
+    host: process.env.REDIS_HOST,
+    port: parseInt(process.env.REDIS_PORT),
+    password: process.env.REDIS_PASSWORD || undefined,
+  });
+  redisClient.connect();
+  logger.info('Redis connected');
+} catch (error) {
+  logger.warn('Redis connection failed, running without caching:', error.message);
+  redisClient = null;
 }
 
 // Express app
@@ -73,16 +70,16 @@ app.use(express.urlencoded({ extended: true }));
 setupMiddleware(app, logger);
 
 // Setup services
-setupServices(app, db, rtdb, redisClient, logger);
+setupServices(app, supabase, redisClient, logger);
 
 // Start bot
-startBot(db, rtdb, redisClient, logger);
+startBot(supabase, null, redisClient, logger);
 
 // Setup matchmaking
-setupMatchmaking(db, rtdb, redisClient, logger);
+setupMatchmaking(supabase, null, redisClient, logger);
 
 // Setup commands
-setupCommands(db, rtdb, redisClient, logger);
+setupCommands(supabase, null, redisClient, logger);
 
 // Health check
 app.get('/health', (req, res) => {

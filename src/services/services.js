@@ -1,15 +1,19 @@
+const { getUsersCount, getActivePairsCount, getReportsCount } = require('../firebase/firebase');
+
 function setupServices(app, db, rtdb, redisClient, logger) {
   // Analytics service
   app.get('/api/analytics', async (req, res) => {
     try {
-      const users = await db.collection('users').get();
-      const activePairs = await db.collection('active_pairs').get();
-      const reports = await db.collection('reports').get();
+      const [totalUsers, activeChats, totalReports] = await Promise.all([
+        getUsersCount(),
+        getActivePairsCount(),
+        getReportsCount()
+      ]);
 
       res.json({
-        totalUsers: users.size,
-        activeChats: activePairs.size,
-        totalReports: reports.size,
+        totalUsers,
+        activeChats,
+        totalReports,
       });
     } catch (error) {
       logger.error('Analytics error', error);

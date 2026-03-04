@@ -1,24 +1,23 @@
 const { v4: uuidv4 } = require('uuid');
+const { supabase, getWaitingUsers } = require('../firebase/firebase');
 
 async function setupMatchmaking(db, rtdb, redisClient, logger) {
   // Run matchmaking loop
   setInterval(async () => {
-    await performMatchmaking(db, rtdb, redisClient, logger);
+    await performMatchmaking(logger);
   }, 5000); // Check every 5 seconds
 }
 
-async function performMatchmaking(db, rtdb, redisClient, logger) {
+async function performMatchmaking(logger) {
   try {
-    const waitingUsers = await redisClient.lRange('waiting_queue', 0, -1);
+    const waitingUsers = await getWaitingUsers();
     if (waitingUsers.length < 2) return;
 
     // Get user preferences
-    const usersWithPrefs = await Promise.all(
-      waitingUsers.map(async (userId) => {
-        const userDoc = await db.collection('users').doc(userId).get();
-        return { id: userId, prefs: userDoc.data()?.preferences || {} };
-      })
-    );
+    const usersWithPrefs = waitingUsers.map(user => ({
+      id: user.id,
+      prefs: user.preferences || {}
+    }));
 
     // Simple matching: find compatible pairs
     for (let i = 0; i < usersWithPrefs.length - 1; i++) {
@@ -27,22 +26,28 @@ async function performMatchmaking(db, rtdb, redisClient, logger) {
         const user2 = usersWithPrefs[j];
 
         if (isCompatible(user1.prefs, user2.prefs)) {
-          // Remove from queue
-          await redisClient.lRem('waiting_queue', 0, user1.id);
-          await redisClient.lRem('waiting_queue', 0, user2.id);
+          // Remove from waiting queue
+          await supabase
+            .from('users')
+            .update({ status: 'matched' })
+            .in('id', [user1.id, user2.id]);
 
           // Create pair
           const pairId = uuidv4();
-          await db.collection('active_pairs').doc(pairId).set({
-            id: pairId,
-            user1: user1.id,
-            user2: user2.id,
-            startedAt: new Date(),
-          });
+          await supabase
+            .from('active_pairs')
+            .insert({
+              id: pairId,
+              user1: user1.id,
+              user2: user2.id,
+              started_at: new Date().toISOString(),
+            });
 
           // Update user statuses
-          await db.collection('users').doc(user1.id).update({ status: 'chatting', pairId });
-          await db.collection('users').doc(user2.id).update({ status: 'chatting', pairId });
+          await supabase
+            .from('users')
+            .update({ status: 'chatting', current_pair_id: pairId })
+            .in('id', [user1.id, user2.id]);
 
           logger.info(`Paired ${user1.id} with ${user2.id}`);
           return; // Pair one at a time

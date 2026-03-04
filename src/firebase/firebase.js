@@ -1,33 +1,97 @@
-// Firebase utilities
-const { getFirestore } = require('firebase-admin/firestore');
-const { getDatabase } = require('firebase-admin/database');
+// Supabase utilities
+const { createClient } = require('@supabase/supabase-js');
 
-const db = getFirestore();
-const rtdb = getDatabase();
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase configuration');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function getUser(userId) {
-  const doc = await db.collection('users').doc(userId).get();
-  return doc.exists ? doc.data() : null;
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return data;
 }
 
 async function updateUser(userId, data) {
-  await db.collection('users').doc(userId).update(data);
+  const { error } = await supabase
+    .from('users')
+    .upsert({ id: userId, ...data });
+
+  if (error) throw error;
 }
 
 async function getActivePair(userId) {
-  const snapshot = await db.collection('active_pairs').where('user1', '==', userId).get();
-  if (!snapshot.empty) return snapshot.docs[0].data();
-  const snapshot2 = await db.collection('active_pairs').where('user2', '==', userId).get();
-  if (!snapshot2.empty) return snapshot2.docs[0].data();
-  return null;
+  const { data, error } = await supabase
+    .from('active_pairs')
+    .select('*')
+    .or(`user1.eq.${userId},user2.eq.${userId}`)
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return data;
 }
 
 async function createPair(pair) {
-  await db.collection('active_pairs').doc(pair.id).set(pair);
+  const { error } = await supabase
+    .from('active_pairs')
+    .insert(pair);
+
+  if (error) throw error;
 }
 
 async function deletePair(pairId) {
-  await db.collection('active_pairs').doc(pairId).delete();
+  const { error } = await supabase
+    .from('active_pairs')
+    .delete()
+    .eq('id', pairId);
+
+  if (error) throw error;
 }
 
-module.exports = { db, rtdb, getUser, updateUser, getActivePair, createPair, deletePair };
+async function getUsersCount() {
+  const { count, error } = await supabase
+    .from('users')
+    .select('*', { count: 'exact', head: true });
+
+  if (error) throw error;
+  return count || 0;
+}
+
+async function getActivePairsCount() {
+  const { count, error } = await supabase
+    .from('active_pairs')
+    .select('*', { count: 'exact', head: true });
+
+  if (error) throw error;
+  return count || 0;
+}
+
+async function getReportsCount() {
+  const { count, error } = await supabase
+    .from('reports')
+    .select('*', { count: 'exact', head: true });
+
+  if (error) throw error;
+  return count || 0;
+}
+
+module.exports = {
+  supabase,
+  getUser,
+  updateUser,
+  getActivePair,
+  createPair,
+  deletePair,
+  getUsersCount,
+  getActivePairsCount,
+  getReportsCount
+};
