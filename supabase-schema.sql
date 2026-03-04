@@ -1,8 +1,5 @@
 -- Supabase Database Schema for WhatsApp Anonymous Chat Bot
 
--- Enable Row Level Security
-ALTER DATABASE postgres SET "app.jwt_secret" TO 'your-jwt-secret';
-
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
@@ -65,31 +62,37 @@ ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE moderation ENABLE ROW LEVEL SECURITY;
 ALTER TABLE analytics ENABLE ROW LEVEL SECURITY;
 
--- Users policies (users can only see their own data)
-CREATE POLICY "Users can view own data" ON users
-  FOR SELECT USING (auth.uid()::text = id);
+-- Users policies (allow all for development)
+CREATE POLICY "Allow all on users" ON users
+  FOR ALL USING (true);
 
-CREATE POLICY "Users can update own data" ON users
-  FOR UPDATE USING (auth.uid()::text = id);
+CREATE POLICY "Allow select on users" ON users
+  FOR SELECT USING (true);
+
+CREATE POLICY "Allow insert on users" ON users
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Allow update on users" ON users
+  FOR UPDATE USING (true);
 
 -- Active pairs policies
-CREATE POLICY "Users can view their pairs" ON active_pairs
-  FOR SELECT USING (auth.uid()::text = user1 OR auth.uid()::text = user2);
+CREATE POLICY "Allow all on active_pairs" ON active_pairs
+  FOR ALL USING (true);
 
--- Reports policies (only authenticated users can create reports)
-CREATE POLICY "Authenticated users can create reports" ON reports
-  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+-- Reports policies
+CREATE POLICY "Allow insert on reports" ON reports
+  FOR INSERT WITH CHECK (true);
 
--- Moderation policies (only admins)
-CREATE POLICY "Admins can view moderation" ON moderation
-  FOR SELECT USING (auth.jwt() ->> 'role' = 'admin');
+CREATE POLICY "Allow select on reports" ON reports
+  FOR SELECT USING (true);
 
-CREATE POLICY "Admins can manage moderation" ON moderation
-  FOR ALL USING (auth.jwt() ->> 'role' = 'admin');
+-- Moderation policies
+CREATE POLICY "Allow all on moderation" ON moderation
+  FOR ALL USING (true);
 
 -- Analytics policies
-CREATE POLICY "Admins can view analytics" ON analytics
-  FOR SELECT USING (auth.jwt() ->> 'role' = 'admin');
+CREATE POLICY "Allow all on analytics" ON analytics
+  FOR ALL USING (true);
 
 -- Functions for matchmaking
 CREATE OR REPLACE FUNCTION get_waiting_users()
