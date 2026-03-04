@@ -1,4 +1,4 @@
-const { getUsersCount, getActivePairsCount, getReportsCount } = require('../firebase/firebase');
+const { getUsersCount, getActivePairsCount, getReportsCount } = require('../supabase');
 
 function setupServices(app, db, rtdb, redisClient, logger) {
   // Analytics service

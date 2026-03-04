@@ -9,7 +9,7 @@ const { setupMatchmaking } = require('./matchmaking/matchmaking');
 const { setupServices } = require('./services/services');
 const { setupMiddleware } = require('./middleware/middleware');
 const { setupCommands } = require('./commands/commands');
-const { supabase } = require('./firebase/firebase');
+const { supabase } = require('./supabase');
 
 // Logger
 const logger = winston.createLogger({

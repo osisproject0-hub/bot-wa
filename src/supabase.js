@@ -2,7 +2,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase configuration');
@@ -38,6 +38,25 @@ async function getActivePair(userId) {
 
   if (error && error.code !== 'PGRST116') throw error;
   return data;
+}
+
+async function getWaitingUsers() {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('status', 'waiting')
+      .order('joined_at', { ascending: true });
+
+    if (error) {
+      console.warn('Database not ready or table missing:', error.message);
+      return [];
+    }
+    return data || [];
+  } catch (error) {
+    console.warn('Database connection issue:', error.message);
+    return [];
+  }
 }
 
 async function createPair(pair) {
@@ -91,6 +110,7 @@ module.exports = {
   getActivePair,
   createPair,
   deletePair,
+  getWaitingUsers,
   getUsersCount,
   getActivePairsCount,
   getReportsCount

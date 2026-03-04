@@ -2,7 +2,7 @@ const { makeWASocket, DisconnectReason, useMultiFileAuthState } = require('@whis
 const { Boom } = require('@hapi/boom');
 const path = require('path');
 const fs = require('fs');
-const { supabase, getUser, updateUser, getActivePair, createPair, deletePair } = require('../firebase/firebase');
+const { supabase, getUser, updateUser, getActivePair, createPair, deletePair } = require('../supabase');
 const { detectSpam, floodControl, sanitizeInput } = require('../utils/utils');
 
 async function startBot(db, rtdb, redisClient, logger) {
@@ -20,7 +20,15 @@ async function startBot(db, rtdb, redisClient, logger) {
   });
 
   sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect } = update;
+    const { connection, lastDisconnect, qr } = update;
+    
+    if (qr) {
+      // Display QR code for authentication
+      console.log('QR Code received, scan with WhatsApp:');
+      console.log(qr);
+      logger.info('QR Code generated for WhatsApp authentication');
+    }
+    
     if (connection === 'close') {
       const shouldReconnect = (lastDisconnect?.error instanceof Boom)
         ? lastDisconnect.error.output.statusCode !== DisconnectReason.loggedOut

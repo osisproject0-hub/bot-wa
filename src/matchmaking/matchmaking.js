@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { supabase, getWaitingUsers } = require('../firebase/firebase');
+const { supabase, getWaitingUsers } = require('../supabase');
 
 async function setupMatchmaking(db, rtdb, redisClient, logger) {
   // Run matchmaking loop
@@ -12,6 +12,9 @@ async function performMatchmaking(logger) {
   try {
     const waitingUsers = await getWaitingUsers();
     if (waitingUsers.length < 2) return;
+
+    // Pairing logic here
+    // ... existing code ...
 
     // Get user preferences
     const usersWithPrefs = waitingUsers.map(user => ({

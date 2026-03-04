@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@hapi/boom": "^10.0.1",
-    "@supabase/supabase-js": "^2.98.0",
     "@whiskeysockets/baileys": "^6.7.5",
     "axios": "^1.6.2",
     "crypto": "^1.0.1",
@@ -28,6 +27,7 @@
     "winston": "^3.11.0"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.98.0",
     "jest": "^29.7.0",
     "nodemon": "^3.0.2",
     "supertest": "^6.3.3"
