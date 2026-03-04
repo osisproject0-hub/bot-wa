@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can read/write their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Admin can read all
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.token.admin == true;
+    }
+    
+    // Pairs - users can read their own pairs
+    match /active_pairs/{pairId} {
+      allow read, write: if request.auth != null && 
+        (resource.data.user1 == request.auth.uid || resource.data.user2 == request.auth.uid);
+    }
+    
+    // Reports - only admin
+    match /reports/{reportId} {
+      allow read, write: if request.auth != null && request.auth.token.admin == true;
+    }
+    
+    // Moderation - only admin
+    match /moderation/{modId} {
+      allow read, write: if request.auth != null && request.auth.token.admin == true;
+    }
+  }
+}
